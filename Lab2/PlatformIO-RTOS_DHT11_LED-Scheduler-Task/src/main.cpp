@@ -1,14 +1,16 @@
-#include <ArduinoOTA.h>
 #include <Arduino_MQTT_Client.h>
 #include <ArduinoHttpClient.h>
+#include <ArduinoJson.h>
 #include <ThingsBoard.h>
 #include <HTTPClient.h>
-#include <WiFi.h>
-#include <Arduino.h>
+#include <ArduinoOTA.h>
 #include <Adafruit_Sensor.h>
-#include <DHT.h>
+#include <Arduino.h>
 #include <DHT_U.h>
+#include <DHT.h>
+#include <WiFi.h>
 #include <Wire.h>
+#include "time.h"
 
 // Định nghĩa chân kết nối
 #define LED_PIN 18        // Chân kết nối LED
@@ -27,7 +29,7 @@ SemaphoreHandle_t ledSemaphore;
 
 // Lưu thời điểm gửi dữ liệu và kiểm tra kết nối
 uint32_t previousDataSend;
-constexpr int16_t telemetrySendInterval = 10000U; // 10 giây
+constexpr int16_t telemetrySendInterval = 5000U; // 10 giây
 
 // Các hằng số cấu hình
 constexpr uint32_t MAX_MESSAGE_SIZE = 1024U;
@@ -52,25 +54,28 @@ constexpr char WIFI_PASSWORD[] = "Tiger@E1112";
 // constexpr char WIFI_PASSWORD[] = "12345678";
 
 // Cấu hình ThingsBoard
-constexpr char TOKEN[] = "ylnssu5ata3h1r343ym4";
+constexpr char TOKEN[] = "lKXNTKmMkClTbyy9KVYE";
 constexpr char THINGSBOARD_SERVER[] = "app.coreiot.io";
 constexpr uint16_t THINGSBOARD_PORT = 1883U;
 
 DHT dht(DHTPIN, DHTTYPE);
 
-// Cập nhật trạng thái LED lên Dashboard
-void updateDashboardLEDState() {
-  if (tb.connected()) {
-      tb.sendAttributeData("getValueButtonLED", ledState);
-      attributesChangedLED = false;  // Reset trạng thái thay đổi
-  }
-}
-
 // Xử lý RPC từ Dashboard để thay đổi LED
 RPC_Response setLedSwitchState(const RPC_Data &data) {
-  bool newLEDState = data;
-  
-  if (ledState != newLEDState) {  // Chỉ thay đổi nếu có sự khác biệt
+  bool newLEDState = false;
+
+  // Kiểm tra nếu dữ liệu có key "params" (Scheduler gửi)
+  if (data.containsKey("params")) {
+    newLEDState = data["params"].as<bool>();
+  } else if (data.is<bool>()) {
+    // Trường hợp người dùng gửi trực tiếp true/false từ dashboard
+    newLEDState = data.as<bool>();
+  } else {
+    Serial.println("Dữ liệu RPC không hợp lệ.");
+    return RPC_Response("setValueButtonLED", "Invalid params");
+  }
+
+  if (ledState != newLEDState) {
     xSemaphoreTake(ledSemaphore, portMAX_DELAY);
     ledState = newLEDState;
     digitalWrite(LED_PIN, ledState);
@@ -79,6 +84,7 @@ RPC_Response setLedSwitchState(const RPC_Data &data) {
     Serial.printf("Dashboard yêu cầu: %s LED!\n", ledState ? "BẬT" : "TẮT");
     attributesChangedLED = true;
   }
+
   return RPC_Response("setValueButtonLED", ledState);
 }
 
@@ -164,7 +170,7 @@ void ThingsBoardTask(void *pvParameters) {
   }
 }
 
-// // Task kiểm tra và kết nối lại WiFi và ThingsBoard
+// Task kiểm tra và kết nối lại WiFi và ThingsBoard
 void ReconnectTask(void *pvParameters) {
   for (;;) {
     if (millis() - previousReconnectCheck > reconnectInterval) {
@@ -210,6 +216,14 @@ void DHTSensorTask(void *pvParameters) {
     }
       
     vTaskDelay(telemetrySendInterval / portTICK_PERIOD_MS);
+  }
+}
+
+// Cập nhật trạng thái LED lên Dashboard
+void updateDashboardLEDState() {
+  if (tb.connected()) {
+      tb.sendAttributeData("getValueButtonLED", ledState);
+      attributesChangedLED = false;  // Reset trạng thái thay đổi
   }
 }
 
