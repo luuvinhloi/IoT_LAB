@@ -44,17 +44,11 @@ Arduino_MQTT_Client mqttClient(wifiClient);
 ThingsBoard tb(mqttClient, MAX_MESSAGE_SIZE);
 
 // Cấu hình WiFi
-constexpr char WIFI_SSID[] = "E11_12";
-constexpr char WIFI_PASSWORD[] = "Tiger@E1112";
-
-// constexpr char WIFI_SSID[] = "GGROUP-LAU5";
-// constexpr char WIFI_PASSWORD[] = "Ggr0up5#";
-
-// constexpr char WIFI_SSID[] = "ACLAB-IOT";
-// constexpr char WIFI_PASSWORD[] = "12345678";
+constexpr char WIFI_SSID[] = "*******";
+constexpr char WIFI_PASSWORD[] = "*********";
 
 // Cấu hình ThingsBoard
-constexpr char TOKEN[] = "lKXNTKmMkClTbyy9KVYE";
+constexpr char TOKEN[] = "**********";
 constexpr char THINGSBOARD_SERVER[] = "app.coreiot.io";
 constexpr uint16_t THINGSBOARD_PORT = 1883U;
 
